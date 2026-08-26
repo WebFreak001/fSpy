@@ -33,7 +33,7 @@ export default function SplashScreen(props: SplashScreenProps) {
         <div style={{ textAlign: 'center', alignSelf: 'center' }}>
           <img
             style={{ width: '100px', marginTop: '100px', marginBottom: '30px', height: '100px' }}
-            src='/icon.svg'
+            src={import.meta.env.BASE_URL + 'icon.svg'}
           />
           <div style={{ color: 'white', opacity: 0.3 }}>Drop an image or project here</div>
         </div>
