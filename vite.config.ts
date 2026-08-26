@@ -6,6 +6,7 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 export default defineConfig({
   root: 'src/gui',
+  base: process.env.VITE_BASE ?? '/',
   // assets/electron/ served at root URL: /icon.svg, /example.fspy, /icon.png
   publicDir: '../../assets/electron',
   build: {

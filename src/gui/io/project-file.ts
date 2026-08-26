@@ -27,7 +27,7 @@ import { cameraPresets } from '../solver/camera-presets'
 import { ReferenceDistanceUnit } from '../types/calibration-settings'
 
 export default class ProjectFile {
-  static readonly EXAMPLE_PROJECT_URL = '/example.fspy'
+  static readonly EXAMPLE_PROJECT_URL = import.meta.env.BASE_URL + 'example.fspy'
   static readonly PROJECT_FILE_EXTENSION = 'fspy'
   static readonly PROJECT_FILE_ID = 'fspy'
   static readonly PROJECT_FILE_VERSION = 1
