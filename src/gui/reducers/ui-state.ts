@@ -19,40 +19,32 @@
 import { ActionTypes, AppAction } from '../actions'
 import { UIState } from '../types/ui-state'
 import { defaultUIState } from '../defaults/ui-state'
-import { ipcRenderer } from 'electron'
-import { SetDocumentStateMessage } from '../ipc-messages'
+
+function updateTitle(filename: string | null, hasUnsavedChanges: boolean) {
+  const name = filename || 'Untitled'
+  document.title = hasUnsavedChanges ? `${name} • fSpy` : `${name} - fSpy`
+}
 
 export function uiState(state: UIState | undefined, action: AppAction): UIState {
   if (state === undefined) {
     return defaultUIState
   }
 
-  // TODO: move these ipc calls somewhere else?
-
   switch (action.type) {
     case ActionTypes.SET_PROJECT_HAS_UNSAVED_CHANGES:
-      ipcRenderer.send(
-        SetDocumentStateMessage.type,
-        new SetDocumentStateMessage(true, undefined, undefined)
-      )
+      updateTitle(state.projectFilePath, true)
       return {
         ...state,
         projectHasUnsavedChanges: true
       }
     case ActionTypes.SET_PROJECT_FILE_PATH:
-      ipcRenderer.send(
-        SetDocumentStateMessage.type,
-        new SetDocumentStateMessage(false, action.projectFilePath, false)
-      )
+      updateTitle(action.projectFilePath, false)
       return {
         ...state,
         projectFilePath: action.projectFilePath
       }
     case ActionTypes.LOAD_DEFAULT_STATE:
-      ipcRenderer.send(
-        SetDocumentStateMessage.type,
-        new SetDocumentStateMessage(false, null, false)
-      )
+      updateTitle(null, false)
       return {
         ...state,
         projectHasUnsavedChanges: false,
@@ -64,14 +56,7 @@ export function uiState(state: UIState | undefined, action: AppAction): UIState 
         sidePanelsAreVisible: action.panelsAreVisible
       }
     case ActionTypes.LOAD_STATE:
-      ipcRenderer.send(
-        SetDocumentStateMessage.type,
-        new SetDocumentStateMessage(
-          false,
-          action.projectFilePath,
-          action.isExampleProject
-        )
-      )
+      updateTitle(action.isExampleProject ? null : action.projectFilePath, false)
       return {
         ...state,
         projectHasUnsavedChanges: false,

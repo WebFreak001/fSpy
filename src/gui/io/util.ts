@@ -16,10 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { join } from 'path'
-
 export function loadImage(
-  imageBuffer: Buffer,
+  imageBuffer: Uint8Array,
   onLoad: (width: number, height: number, url: string) => void,
   onError: () => void
 ) {
@@ -35,26 +33,14 @@ export function loadImage(
   }
 }
 
-export function resourceURL(fileName: string): string {
-  if (process.resourcesPath != null) {
-    if (process.env.DEV) {
-      return join(`file://${process.cwd()}`, 'assets/electron', fileName)
-    } else {
-      return join(process.resourcesPath, fileName)
-    }
-  }
-
-  return ''
-}
-
-export function resourcePath(fileName: string): string {
-  if (process.resourcesPath != null) {
-    if (process.env.DEV) {
-      return join(process.cwd(), 'assets/electron', fileName)
-    } else {
-      return join(process.resourcesPath, fileName)
-    }
-  }
-
-  return ''
+export function triggerDownload(data: Uint8Array | string, filename: string, mimeType: string = 'application/octet-stream') {
+  const blob = typeof data === 'string'
+    ? new Blob([data], { type: 'text/plain' })
+    : new Blob([data], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }

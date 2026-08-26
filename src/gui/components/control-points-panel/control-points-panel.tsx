@@ -18,7 +18,9 @@
 
 import * as React from 'react'
 import { Stage, Layer, Group } from 'react-konva'
-import Measure, { ContentRect } from 'react-measure'
+import MeasureImport, { ContentRect } from 'react-measure'
+// UMD interop: esbuild may give us the namespace object instead of the component
+const Measure = typeof MeasureImport === 'function' ? MeasureImport : (MeasureImport as any).default
 import Point2D from '../../solver/point-2d'
 import AABB from '../../solver/aabb'
 import { ControlPointsContainerCallbacks } from '../../containers/control-points-container'
@@ -134,7 +136,7 @@ export default class ControlPointsPanel extends React.Component<ControlPointsPan
             })
           }}
         >
-          {({ measureRef }) => {
+          {({ measureRef }: { measureRef: any }) => {
             return (<div id='image-panel' ref={measureRef} >
               {hasImage ? this.renderImageAndControlPoints(width, height, is1VPMode) : null }
             </div>

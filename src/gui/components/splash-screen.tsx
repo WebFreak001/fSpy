@@ -17,9 +17,9 @@
  */
 
 import React from 'react'
-import { resourceURL } from '../io/util'
 import { Palette } from '../style/palette'
-import { remote } from 'electron'
+
+declare const APP_VERSION: string
 
 interface SplashScreenProps {
   onClickedLoadExampleProject(): void
@@ -27,13 +27,13 @@ interface SplashScreenProps {
 
 export default function SplashScreen(props: SplashScreenProps) {
   return (
-    <div style={{ backgroundColor: Palette.imagePanelBackgroundColor, width: '100vw', height: '100vh', position: 'absolute' }}>
-      <div style={{ position: 'absolute', right: '0px', padding: '10px', color: 'white', opacity: 0.1 }}>{ remote.app.getVersion() }</div>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', justifyContent: 'center' }}>
+    <div style={{ backgroundColor: Palette.imagePanelBackgroundColor, width: '100vw', height: '100%', position: 'absolute' }}>
+      <div style={{ position: 'absolute', right: '0px', padding: '10px', color: 'white', opacity: 0.1 }}>{ APP_VERSION }</div>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', alignSelf: 'center' }}>
           <img
             style={{ width: '100px', marginTop: '100px', marginBottom: '30px', height: '100px' }}
-            src={resourceURL('icon.svg')}
+            src='/icon.svg'
           />
           <div style={{ color: 'white', opacity: 0.3 }}>Drop an image or project here</div>
         </div>

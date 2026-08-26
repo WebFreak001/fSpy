@@ -20,21 +20,17 @@ import * as React from 'react'
 import ControlPointsContainer from './containers/control-points-container'
 import ResultContainer from './containers/result-container'
 import SettingsContainer from './containers/settings-container'
+import ToolbarContainer from './containers/toolbar-container'
 
 import { StoreState } from './types/store-state'
 import { connect } from 'react-redux'
-import { AppAction, setImage, loadDefaultState, setSidePanelVisibility } from './actions'
+import { AppAction, setImage } from './actions'
 import { GlobalSettings } from './types/global-settings'
 import { UIState } from './types/ui-state'
 import { ImageState } from './types/image-state'
 import { SolverResult } from './solver/solver-result'
-import { ipcRenderer, remote } from 'electron'
-import { NewProjectMessage, OpenProjectMessage, SaveProjectMessage, SaveProjectAsMessage, OpenImageMessage, ExportMessage, ExportType, SetSidePanelVisibilityMessage } from '../main/ipc-messages'
 import ProjectFile from './io/project-file'
-import { readFileSync } from 'fs'
-import { SpecifyProjectPathMessage, OpenDroppedProjectMessage, SpecifyExportPathMessage } from './ipc-messages'
 import { loadImage } from './io/util'
-import store from './store/store'
 import SplashScreen from './components/splash-screen'
 import { Dispatch } from 'redux'
 
@@ -43,16 +39,9 @@ interface AppProps {
   globalSettings: GlobalSettings,
   solverResult: SolverResult,
   image: ImageState,
-  onImageFileDropped(imagePath: string): void
-  onProjectFileDropped(imagePath: string): void
-  onOpenExampleProjectPressed(): void
-
-  onNewProjectIPCMessage(): void
-  onOpenProjectIPCMessage(filePath: string, isExampleProject: boolean): void
-  onSaveProjectAsIPCMessage(filePath: string): void
-  onOpenImageIPCMessage(imagePath: string): void
-  onExportIPCMessage(exportType: ExportType): void
-  onSetSidePanelVisibilityIPCMessage(panelsAreVisible: boolean): void
+  onImageFileDropped(file: File): any
+  onProjectFileDropped(file: File): any
+  onOpenExampleProjectPressed(): any
 }
 
 class App extends React.PureComponent<AppProps> {
@@ -62,8 +51,6 @@ class App extends React.PureComponent<AppProps> {
   }
 
   componentWillMount() {
-    this.registerIPCHandlers()
-
     document.ondragover = (ev) => {
       ev.preventDefault()
       return false
@@ -83,13 +70,10 @@ class App extends React.PureComponent<AppProps> {
       if (ev.dataTransfer != null) {
         let firstFile = ev.dataTransfer.files[0]
         if (firstFile) {
-          let filePath = firstFile.path
-          let isProjectFile = ProjectFile.isProjectFile(filePath)
-          if (isProjectFile) {
-            this.props.onProjectFileDropped(filePath)
+          if (firstFile.name.endsWith('.fspy')) {
+            this.props.onProjectFileDropped(firstFile)
           } else {
-            // try to open the file as an image
-            this.props.onImageFileDropped(filePath)
+            this.props.onImageFileDropped(firstFile)
           }
         }
         ev.preventDefault()
@@ -102,47 +86,16 @@ class App extends React.PureComponent<AppProps> {
   render() {
     const hasImage = this.props.image.data !== null
     return (
-      <div id='app-container'>
-        <SettingsContainer isVisible={this.props.uiState.sidePanelsAreVisible} />
-        <ControlPointsContainer />
-        <ResultContainer isVisible={this.props.uiState.sidePanelsAreVisible} />
-        { !hasImage ? (<SplashScreen onClickedLoadExampleProject={this.props.onOpenExampleProjectPressed} />) : null }
+      <div id='app-wrapper'>
+        <ToolbarContainer />
+        <div id='app-container'>
+          <SettingsContainer isVisible={this.props.uiState.sidePanelsAreVisible} />
+          <ControlPointsContainer />
+          <ResultContainer isVisible={this.props.uiState.sidePanelsAreVisible} />
+          { !hasImage ? (<SplashScreen onClickedLoadExampleProject={this.props.onOpenExampleProjectPressed} />) : null }
+        </div>
       </div>
     )
-  }
-
-  private registerIPCHandlers() {
-    ipcRenderer.on(NewProjectMessage.type, (_: any, __: NewProjectMessage) => {
-      this.props.onNewProjectIPCMessage()
-    })
-
-    ipcRenderer.on(OpenProjectMessage.type, (_: any, message: OpenProjectMessage) => {
-      this.props.onOpenProjectIPCMessage(message.filePath, message.isExampleProject)
-    })
-
-    ipcRenderer.on(SaveProjectMessage.type, (_: any, __: SaveProjectMessage) => {
-      if (this.props.uiState.projectFilePath) {
-        this.props.onSaveProjectAsIPCMessage(this.props.uiState.projectFilePath)
-      } else {
-        ipcRenderer.send(SpecifyProjectPathMessage.type, new SpecifyProjectPathMessage())
-      }
-    })
-
-    ipcRenderer.on(SaveProjectAsMessage.type, (_: any, message: SaveProjectAsMessage) => {
-      this.props.onSaveProjectAsIPCMessage(message.filePath)
-    })
-
-    ipcRenderer.on(OpenImageMessage.type, (_: any, message: OpenImageMessage) => {
-      this.props.onOpenImageIPCMessage(message.filePath)
-    })
-
-    ipcRenderer.on(ExportMessage.type, (_: any, message: ExportMessage) => {
-      this.props.onExportIPCMessage(message.exportType)
-    })
-
-    ipcRenderer.on(SetSidePanelVisibilityMessage.type, (_: any, message: SetSidePanelVisibilityMessage) => {
-      this.props.onSetSidePanelVisibilityIPCMessage(message.panelsAreVisible)
-    })
   }
 }
 
@@ -155,83 +108,37 @@ export function mapStateToProps(state: StoreState) {
   }
 }
 
+function readFileAsUint8Array(file: File): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => resolve(new Uint8Array(e.target!.result as ArrayBuffer))
+    reader.onerror = reject
+    reader.readAsArrayBuffer(file)
+  })
+}
+
 export function mapDispatchToProps(dispatch: Dispatch<AppAction>) {
   return {
-    onImageFileDropped: (imagePath: string) => {
-      let imageBuffer = readFileSync(imagePath)
-      // TODO: good to do async loading here?
+    onImageFileDropped: async (file: File) => {
+      const data = await readFileAsUint8Array(file)
       loadImage(
-        imageBuffer,
+        data,
         (width: number, height: number, url: string) => {
-          dispatch(setImage(url, imageBuffer, width, height))
+          dispatch(setImage(url, data, width, height))
         },
         () => {
-          remote.dialog.showErrorBox(
-            'Failed to load image data',
-            'Could not load the image data. Is this a valid image file?'
-          )
+          alert('Failed to load image data. Is this a valid image file?')
         }
       )
     },
-    onProjectFileDropped: (projectPath: string) => {
-      ipcRenderer.send(
-        OpenDroppedProjectMessage.type,
-        new OpenDroppedProjectMessage(projectPath)
-      )
+    onProjectFileDropped: async (file: File) => {
+      const data = await readFileAsUint8Array(file)
+      ProjectFile.loadFromBuffer(data, dispatch, false, file.name)
     },
     onOpenExampleProjectPressed: () => {
       ProjectFile.loadExample(dispatch)
-    },
-    onNewProjectIPCMessage: () => {
-      dispatch(loadDefaultState())
-    },
-    onOpenProjectIPCMessage: (filePath: string, isExampleProject: boolean) => {
-      ProjectFile.load(filePath, dispatch, isExampleProject)
-    },
-    onSaveProjectAsIPCMessage: (filePath: string) => {
-      ProjectFile.save(filePath, dispatch)
-    },
-    onOpenImageIPCMessage: (imagePath: string) => {
-      let imageBuffer = readFileSync(imagePath)
-      loadImage(
-        imageBuffer,
-        (width: number, height: number, url: string) => {
-          dispatch(setImage(url, imageBuffer, width, height))
-        },
-        () => {
-          alert('Failed to load image')
-        }
-      )
-    },
-    onOpenExampleProjectIPCMessage: () => {
-      ProjectFile.loadExample(dispatch)
-    },
-    onExportIPCMessage: (exportType: ExportType) => {
-      let dataToExport: any | null = null
-      const storeState: StoreState = store.getState()
-      switch (exportType) {
-        case ExportType.CameraParametersJSON:
-          const cameraParameters = storeState.solverResult.cameraParameters
-          if (cameraParameters) {
-            dataToExport = JSON.stringify(cameraParameters, null, 2)
-          }
-          break
-        case ExportType.ProjectImage:
-          dataToExport = storeState.image.data
-          break
-      }
-
-      if (dataToExport) {
-        ipcRenderer.send(
-          SpecifyExportPathMessage.type,
-          new SpecifyExportPathMessage(exportType, dataToExport)
-        )
-      }
-    },
-    onSetSidePanelVisibilityIPCMessage: (panelsAreVisible: boolean) => {
-      dispatch(setSidePanelVisibility(panelsAreVisible))
     }
   }
 }
 
-export default connect(mapStateToProps, mapDispatchToProps)(App)
+export default connect(mapStateToProps, mapDispatchToProps)(App as any)
